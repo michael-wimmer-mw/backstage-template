@@ -82,7 +82,6 @@ spec:
       name: Repository veröffentlichen
       action: publish:github
       input:
-        allowedHosts: ['github.com']
         description: 'FastAPI Service: ${{ parameters.description }}'
         repoUrl: ${{ parameters.repoUrl }}
         defaultBranch: main
