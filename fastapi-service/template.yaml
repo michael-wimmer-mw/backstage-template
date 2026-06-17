@@ -1,0 +1,103 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: fastapi-service
+  title: FastAPI Service
+  description: Erstellt einen neuen FastAPI Microservice mit CI/CD und Container-Setup
+  tags:
+    - python
+    - fastapi
+    - microservice
+    - recommended
+spec:
+  owner: platform-team
+  type: service
+
+  parameters:
+    - title: Service-Informationen
+      required:
+        - name
+        - owner
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Eindeutiger Name des Services (kebab-case)
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+          ui:autofocus: true
+          ui:help: 'z.B. user-management-service'
+        description:
+          title: Beschreibung
+          type: string
+          description: Kurze Beschreibung des Services
+        owner:
+          title: Owner
+          type: string
+          description: Verantwortliches Team oder Person
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group, User]
+        pythonVersion:
+          title: Python Version
+          type: string
+          default: '3.12'
+          enum:
+            - '3.11'
+            - '3.12'
+            - '3.13'
+        includeDatabase:
+          title: Datenbank-Anbindung
+          type: boolean
+          default: false
+          description: SQLAlchemy + Alembic Setup hinzufügen
+
+    - title: Repository-Konfiguration
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository-Speicherort
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+
+  steps:
+    - id: fetch-base
+      name: Template-Dateien laden
+      action: fetch:template
+      input:
+        url: ./content
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          pythonVersion: ${{ parameters.pythonVersion }}
+          includeDatabase: ${{ parameters.includeDatabase }}
+          destination: ${{ parameters.repoUrl | parseRepoUrl }}
+
+    - id: publish
+      name: Repository veröffentlichen
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        description: 'FastAPI Service: ${{ parameters.description }}'
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+
+    - id: register
+      name: Im Catalog registrieren
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps['publish'].output.remoteUrl }}
+      - title: Im Catalog öffnen
+        icon: catalog
+        entityRef: ${{ steps['register'].output.entityRef }}
